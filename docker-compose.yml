@@ -1,0 +1,31 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: ecommerce-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret123
+    volumes:
+      # Named volume keeps database data even if the container restarts.
+      - mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: ecommerce-mongo-express
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: teacher
+      ME_CONFIG_BASICAUTH_PASSWORD: teacher123
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: secret123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:secret123@mongo:27017/
+
+volumes:
+  mongo_data:

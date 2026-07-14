@@ -1,0 +1,48 @@
+const jwt = require("jsonwebtoken");
+const { z } = require("zod");
+const User = require("../models/User");
+const asyncHandler = require("../utils/asyncHandler");
+const { successResponse } = require("../utils/apiResponse");
+const { SuccessEnvelope, User: UserDoc } = require("../docs/schemas");
+
+const { extendZodWithOpenApi } = require("@asteasolutions/zod-to-openapi");
+extendZodWithOpenApi(z);
+
+const registerSchema = z
+  .object({
+    name: z.string().min(2).openapi({ example: "Fahim Ahmed" }),
+    email: z.email().openapi({ example: "fahim@example.com" }),
+    password: z
+      .string()
+      .min(6)
+      .openapi({ example: "secret123", description: "Minimum 6 characters. Hashed with bcrypt before storage." }),
+  })
+  .openapi("RegisterRequest", {
+    description: "Payload for creating a new customer account.",
+  });
+
+const registerResponseSchema = SuccessEnvelope(
+  z.object({ user: UserDoc }),
+  "RegisterResponse"
+);
+
+const register = asyncHandler(async (req, res) => {
+    const body = registerSchema.parse(req.body);
+
+    const existingUser = await User.findOne({ email: body.email });
+    if (existingUser) {
+        const error = new Error("Email already exist!");
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const user = await User.create(body);
+
+    successResponse(res, 201, "User registered successfully", { user });
+});
+
+module.exports = {
+  register,
+  registerSchema,
+  registerResponseSchema,
+};

@@ -5,7 +5,7 @@ const morgan = require("morgan");
 const swaggerUi = require("swagger-ui-express");
 
 const routes = require("./routes");
-const openApiDocument = require("./docs/openapi");
+const swaggerSpec = require("./docs/swagger");
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 const app = express();
@@ -29,10 +29,11 @@ app.use(morgan("dev"));
 
 // Theory:
 // Swagger UI is a human-readable viewer for the OpenAPI contract.
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+// The spec itself is generated at boot from JSDoc comments in src/routes/*.js.
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Machine-readable OpenAPI JSON.
-app.get("/openapi.json", (req, res) => res.json(openApiDocument));
+// Machine-readable OpenAPI JSON, useful for codegen and external tooling.
+app.get("/openapi.json", (req, res) => res.json(swaggerSpec));
 
 // All API routes load from one place.
 app.use(routes);

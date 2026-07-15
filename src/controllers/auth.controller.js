@@ -1,30 +1,13 @@
-const jwt = require("jsonwebtoken");
 const { z } = require("zod");
 const User = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
 const { successResponse } = require("../utils/apiResponse");
-const { SuccessEnvelope, User: UserDoc } = require("../docs/schemas");
 
-const { extendZodWithOpenApi } = require("@asteasolutions/zod-to-openapi");
-extendZodWithOpenApi(z);
-
-const registerSchema = z
-  .object({
-    name: z.string().min(2).openapi({ example: "Fahim Ahmed" }),
-    email: z.email().openapi({ example: "fahim@example.com" }),
-    password: z
-      .string()
-      .min(6)
-      .openapi({ example: "secret123", description: "Minimum 6 characters. Hashed with bcrypt before storage." }),
-  })
-  .openapi("RegisterRequest", {
-    description: "Payload for creating a new customer account.",
-  });
-
-const registerResponseSchema = SuccessEnvelope(
-  z.object({ user: UserDoc }),
-  "RegisterResponse"
-);
+const registerSchema = z.object({
+    name: z.string().min(2),
+    email: z.email(),
+    password: z.string().min(6),
+});
 
 const register = asyncHandler(async (req, res) => {
     const body = registerSchema.parse(req.body);
@@ -42,7 +25,6 @@ const register = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  register,
-  registerSchema,
-  registerResponseSchema,
+    register,
+    registerSchema,
 };

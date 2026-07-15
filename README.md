@@ -1,8 +1,8 @@
 # MERN E-commerce — Backend
 
-Express 5 + Mongoose 9 + Zod 4 backend. Validation, types, and OpenAPI
-are all generated from the same Zod schemas, so the docs cannot drift
-out of sync with the code that runs.
+Express 5 + Mongoose 9 + Zod 4 backend. API documentation is written
+inline next to each route using JSDoc `@openapi` blocks, and served
+by Swagger UI at `/api-docs`.
 
 ## Quick start
 
@@ -23,17 +23,14 @@ Swagger UI, the raw OpenAPI JSON, and the Mongo Express UI
 
 ## Scripts
 
-| Command           | What it does                                                    |
-|-------------------|-----------------------------------------------------------------|
-| `npm run dev`     | Start the server with nodemon                                   |
-| `npm run start`   | Start the server without nodemon                                |
-| `npm run db:up`   | Start mongo + mongo-express containers                          |
-| `npm run db:down` | Stop them                                                       |
-| `npm run db:logs` | Tail mongo logs                                                 |
-| `npm run check`   | `node --check server.js` smoke check                            |
-| `npm run docs:build` | Dump the generated spec to `openapi.json`                   |
-| `npm run docs:check` | Verify every router op has a matching `*.routes.docs.js`    |
-| `npm run docs:lint`  | Lint the generated spec (Redocly if available, fallback otherwise) |
+| Command           | What it does                                          |
+|-------------------|-------------------------------------------------------|
+| `npm run dev`     | Start the server with nodemon                         |
+| `npm run start`   | Start the server without nodemon                      |
+| `npm run db:up`   | Start mongo + mongo-express containers                |
+| `npm run db:down` | Stop them                                             |
+| `npm run db:logs` | Tail mongo logs                                       |
+| `npm run check`   | `node --check server.js` smoke check                  |
 
 ## Useful URLs
 
@@ -42,89 +39,78 @@ Swagger UI, the raw OpenAPI JSON, and the Mongo Express UI
 - OpenAPI JSON: `http://localhost:5000/openapi.json`
 - Mongo Express: `http://localhost:8081` (user `teacher`, pass `teacher123`)
 
+## How docs work
+
+The OpenAPI definition lives in two places and only two:
+
+1. **`src/docs/swagger.js`** — the OpenAPI metadata (info, server,
+   bearer-auth scheme, shared response envelopes) and the glob of
+   files swagger-jsdoc scans for JSDoc.
+2. **`@openapi` JSDoc blocks** placed directly above each
+   `router.<method>(...)` call in `src/routes/*.js`.
+
+The spec is **generated at boot time** — there is no `openapi.json`
+to commit and no build step to remember. Restart the server, and
+the spec reflects whatever the route files say.
+
 ## Adding a documented endpoint
 
-The contract is: **one Zod schema per request/response, registered with
-`.openapi()`, and one `routeDocument()` call per HTTP operation.**
-
-### 1. Define the request and response schemas in the controller
-
-Use `extendZodWithOpenApi(z)` once (already done in `src/controllers/`)
-so Zod gets the `.openapi()` method, then annotate each schema:
+There is exactly **one rule**: each `router.<method>(path, ...)` line
+must have a JSDoc `@openapi` block directly above it. That's it.
 
 ```js
-// src/controllers/auth.controller.js
-const { z } = require("zod");
-const { extendZodWithOpenApi } = require("@asteasolutions/zod-to-openapi");
-const { SuccessEnvelope, User: UserDoc } = require("../docs/schemas");
+// src/routes/auth.routes.js
 
-extendZodWithOpenApi(z);
-
-const loginRequestSchema = z
-  .object({
-    email: z.email().openapi({ example: "fahim@example.com" }),
-    password: z.string().min(6).openapi({
-      example: "secret123",
-      description: "Minimum 6 characters.",
-    }),
-  })
-  .openapi("LoginRequest", {
-    description: "Payload for logging in.",
-  });
-
-const loginResponseSchema = SuccessEnvelope(
-  z.object({ token: z.string(), user: UserDoc }),
-  "LoginResponse"
-);
-
-module.exports.loginRequestSchema = loginRequestSchema;
-module.exports.loginResponseSchema = loginResponseSchema;
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Authenticate and receive a JWT
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:    { type: string, format: email }
+ *               password: { type: string, minLength: 6 }
+ *     responses:
+ *       200:
+ *         description: Login successful.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: "#/components/schemas/SuccessEnvelope"
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         token: { type: string }
+ *                         user:  { $ref: "#/components/schemas/User" }
+ *       401:
+ *         description: Invalid credentials.
+ *         content:
+ *           application/json:
+ *             schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+ */
+router.post("/login", login);
 ```
 
-### 2. Add a `*.routes.docs.js` next to the router
+For endpoints that need a JWT, add `security: [{ bearerAuth: [] }]`
+at the operation level; the padlock icon in Swagger UI will light
+up automatically.
 
-Each router file under `src/routes/` should have a matching doc file
-under `src/docs/routes/`. The doc file calls `routeDocument()` for each
-operation on the router:
-
-```js
-// src/docs/routes/auth.routes.docs.js
-const { routeDocument } = require("../routeDocument");
-const {
-  loginRequestSchema,
-  loginResponseSchema,
-} = require("../../controllers/auth.controller");
-
-routeDocument({
-  tag: "Auth",
-  method: "post",
-  path: "/api/auth/login",
-  summary: "Authenticate and receive a JWT",
-  request: { schema: loginRequestSchema },
-  responses: {
-    200: { description: "Login successful", schema: loginResponseSchema },
-    401: { description: "Invalid credentials" },
-  },
-  security: [{ bearerAuth: [] }],
-});
-```
-
-### 3. Wire the doc file into the assembler
-
-Open `src/docs/openapi.js` and add a `require()` for the new doc file:
-
-```js
-require("./routes/auth.routes.docs");
-```
-
-That's it. The next `npm run dev` will serve the new endpoint in both
-the API and Swagger UI, and `npm run docs:check` will enforce parity
-between `src/routes/` and `src/docs/routes/`.
+For new shared component schemas (a new resource type, a new envelope,
+etc.), add them under `components.schemas` in `src/docs/swagger.js`
+and reference them with `$ref`.
 
 ## Source-of-truth map
 
-- **Domain types and envelopes**: `src/docs/schemas/index.js`
-- **Per-feature OpenAPI registration**: `src/docs/routes/*.routes.docs.js`
-- **Helper**: `src/docs/routeDocument.js`
-- **Generator / assembler**: `src/docs/openapi.js`
-- **Static checks**: `scripts/docs-check.js`, `scripts/docs-lint.js`
+- **OpenAPI metadata, schemas, security**: `src/docs/swagger.js`
+- **Endpoint docs**: JSDoc blocks in `src/routes/*.js`
+- **Runtime validation**: Zod schemas in `src/controllers/*.controller.js`

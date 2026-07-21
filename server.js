@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
     await connectDB();
 
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0", () => {
         const apiUrl = `http://localhost:${PORT}`;
         const swaggerUrl = `${apiUrl}/api-docs`;
         // Mongo Express runs in docker-compose on host port 8081.
@@ -25,6 +25,8 @@ const startServer = async () => {
         console.log(`  Swagger UI   → ${swaggerUrl}`);
         console.log(`  OpenAPI JSON → ${apiUrl}/openapi.json`);
         console.log(`  Mongo UI     → ${mongoExpressUrl}  (user: teacher / pass: teacher123)`);
+        console.log("  Redis        →", process.env.REDIS_URL || "redis://127.0.0.1:6379  (not connected yet — check `npm run db:up`)");
+        console.log("  Redis-insight ", process.env.REDIS_GUI);
         console.log("------------------------------------------------------------\n");
     });
 };

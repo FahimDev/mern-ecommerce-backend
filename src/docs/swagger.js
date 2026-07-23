@@ -77,6 +77,41 @@ const options = {
           },
           required: ["_id", "name", "email", "role"],
         },
+        Product: {
+          type: "object",
+          description: "A product as stored in MongoDB and returned by the API.",
+          properties: {
+            _id:               { type: "string", example: "66b1d3a2c9e44a1f0b123456" },
+            name:              { type: "string", example: "Logitech MX Master 3S" },
+            brand:             { type: "string", example: "Logitech" },
+            category:          { type: "string", example: "Computer Accessories" },
+            price:             { type: "number", example: 12500 },
+            features:          { type: "array", items: { type: "string" } },
+            slug:              { type: "string", example: "logitech-mx-master-3s-wireless-mouse" },
+            shortDescription:  { type: "string", example: "A premium wireless ergonomic mouse built for productive hours." },
+            description:       { type: "string" },
+            seoTitle:          { type: "string" },
+            metaDescription:   { type: "string" },
+            keywords:          { type: "array", items: { type: "string" } },
+            bulletPoints:      { type: "array", items: { type: "string" } },
+            createdBy:         { type: "string", example: "66a3e9b2f1c2a4b5c6d7e8f9" },
+            createdAt:         { type: "string", format: "date-time" },
+            updatedAt:         { type: "string", format: "date-time" }
+          },
+          required: ["_id", "name", "brand", "category", "price", "slug"]
+        },
+        ProductCreateRequest: {
+          type: "object",
+          description: "Trusted basic product facts sent by the admin. SEO fields are NOT included - the backend generates them.",
+          required: ["name", "brand", "category", "price"],
+          properties: {
+            name:     { type: "string", minLength: 2,  maxLength: 200, example: "Logitech MX Master 3S" },
+            brand:    { type: "string", minLength: 1,  maxLength: 120, example: "Logitech" },
+            category: { type: "string", minLength: 1,  maxLength: 120, example: "Computer Accessories" },
+            price:    { type: "number", minimum: 0,    example: 12500 },
+            features: { type: "array", items: { type: "string", minLength: 2, maxLength: 200 }, maxItems: 10 }
+          }
+        }
       },
     },
   },

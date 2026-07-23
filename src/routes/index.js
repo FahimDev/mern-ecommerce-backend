@@ -1,6 +1,7 @@
 const express = require("express");
 const healthRoutes = require("./health.routes");
 const authRoutes = require("./auth.routes");
+const productRoutes = require("./product.routes");
 
 const router = express.Router();
 
@@ -10,5 +11,6 @@ const router = express.Router();
 // so URLs match the OpenAPI contract in src/docs/openapi.js.
 router.use("/api", healthRoutes);
 router.use("/api/auth", authRoutes);
+router.use("/api/products", productRoutes);
 
 module.exports = router;
